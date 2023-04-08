@@ -8,10 +8,10 @@ class HouseAdmin(admin.ModelAdmin):
         "name",
         "price",
         "kind",
+        "total_amenities",
         "host",
         "created_at",
-        "updated_at",
-        )
+    )
 
     list_filter = (
         "country",
@@ -19,9 +19,11 @@ class HouseAdmin(admin.ModelAdmin):
         "pet_allowed",
         "kind",
         "amenities",
-        "created_at",
-        "updated_at",
-        )
+    )
+
+    # models에서도, admin에서도 list_display 내에 들어갈 변수를 정의할 수 있다.
+    def total_amenities(self, house):
+        return house.amenities.count()
 
 
 @admin.register(Amenity)
@@ -31,9 +33,9 @@ class AmenityAdmin(admin.ModelAdmin):
         "description",
         "created_at",
         "updated_at",
-        )
-    
+    )
+
     readonly_fields = (
         "created_at",
         "updated_at",
-        )
+    )

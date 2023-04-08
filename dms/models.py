@@ -9,20 +9,19 @@ class DMRoom(CommonModel):
 
     def __str__(self):
         return "DM Room"
-    
+
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
+        related_name="DMRooms",
     )
 
 
-
 class DM(CommonModel):
-    
+
     """ DM Model Definition """
-    
+
     def __str__(self):
         return f"{self.user} says: {self.text}"
-    
 
     text = models.TextField()
     user = models.ForeignKey(
@@ -30,10 +29,10 @@ class DM(CommonModel):
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
+        related_name="DMs"
     )
     room = models.ForeignKey(
         "dms.DMRoom",
         on_delete=models.CASCADE,
+        related_name="DMs"
     )
-
-    

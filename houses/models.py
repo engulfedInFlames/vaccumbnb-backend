@@ -44,15 +44,18 @@ class House(CommonModel):
     host = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
+        related_name="houses",
     )
     amenities = models.ManyToManyField(
         "houses.Amenity",
+        related_name="houses",
     )
     category = models.ForeignKey(
         "categories.Category",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
+        related_name="houses",
     )
 
 

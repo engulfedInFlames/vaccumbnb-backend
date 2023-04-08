@@ -2,13 +2,14 @@ from django.db import models
 from common.models import CommonModel
 from django.conf import settings
 
+
 class Booking(CommonModel):
 
     """ Booking Model Definition """
 
     def __str__(self) -> str:
         return f"{self.kind.title()}: {self.room if self.kind == 'house' else self.experience}"
-    
+
     class BookingKindChoices(models.TextChoices):
         HOUSE = "house", "House"
         EXPERIENCE = "experience", "Experience"
@@ -20,18 +21,21 @@ class Booking(CommonModel):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
+        related_name="bookings",
     )
     house = models.ForeignKey(
         "houses.House",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
+        related_name="bookings",
     )
     experience = models.ForeignKey(
         "experiences.Experience",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
+        related_name="bookings",
     )
     check_in = models.DateField(
         null=True,
