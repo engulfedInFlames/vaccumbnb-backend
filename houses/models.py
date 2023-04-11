@@ -7,8 +7,24 @@ class House(CommonModel):
 
     """ House Model Definition """
 
+    # 첫 번째 인자를 꼭 "self"로 할 필요 X, 인자만 있으면 된다.
     def __str__(self):
         return self.name
+
+    def total_amenities(self):
+        return self.amenities.count()
+
+    def rating(self):
+        count = self.reviews.count()
+        if count == 0:
+            return "No Reviews"
+        else:
+            total_rating = 0
+            # self.reviews.all()을 하게 되면 review의 전체 DB 데이터를 가지고 오게 된다.
+            # 필요한 것은 rating 뿐이므로, 필터링 (Optimization)
+            for value in self.reviews.all().values("rating"):
+                total_rating += value["rating"]
+            return round(total_rating/count, 2)
 
     class RoomKindChoices(models.TextChoices):
         ENTIRE_PLACE = "entire_place", "Entire Place"
