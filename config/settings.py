@@ -51,7 +51,9 @@ CUSTOM_APPS = [
     "dms.apps.DmsConfig",
 ]
 
-THIRD_PARTY_APPS = []
+THIRD_PARTY_APPS = [
+    "rest_framework"
+]
 
 INSTALLED_APPS = SYSTEM_APPS + CUSTOM_APPS + THIRD_PARTY_APPS
 
