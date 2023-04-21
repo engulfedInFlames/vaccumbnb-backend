@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractUser
 
 class CustomUser(AbstractUser):
 
-    """ CustomUser Model Definition """
+    """CustomUser Model Definition"""
 
     class GenderChoices(models.TextChoices):
         MALE = "male", "Male"

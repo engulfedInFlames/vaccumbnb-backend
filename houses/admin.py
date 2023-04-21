@@ -8,7 +8,6 @@ def reset_prices(model_admin, request, houses):
     # request: request에 대한 정보. 특히, user 정보
     # queryset: 체크박스로 선택된 데이터들의 모음. 여기서는 houses
     if request.user.is_superuser:
-        print("here")
         for house in houses.all():
             house.price = 0
             house.save()

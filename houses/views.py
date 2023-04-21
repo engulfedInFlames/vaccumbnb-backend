@@ -1,25 +1,42 @@
 from django.shortcuts import get_object_or_404
 from django.db import transaction
+from django.conf import settings
+from django.utils import timezone
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.status import HTTP_204_NO_CONTENT
+from rest_framework import status
 from rest_framework.exceptions import NotAuthenticated, ParseError, PermissionDenied
-from .serializers import HouseListSerializer, HouseDetailSerializer, AmenitySerializer
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+
 from .models import House, Amenity
+from .serializers import HouseListSerializer, HouseDetailSerializer, AmenitySerializer
+
 from categories.models import Category
+from medias.models import Photo
+from bookings.models import Booking
+from reviews.serializers import ReviewSerializer
+from medias.serializers import PhotoSerializer
+from bookings.serializers import PublicBookingSerializer, CreateHouseBookingSerializer
 
 
 class Houses(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
     def get(self, request):
         all_houses = House.objects.all()
-        serializer = HouseListSerializer(all_houses, many=True)
+        context = {"user": request.user}
+        serializer = HouseListSerializer(
+            all_houses,
+            many=True,
+            context=context,
+        )
         return Response(serializer.data)
 
     def post(self, request):
         user = request.user
-        if not user.is_authenticated:
-            raise NotAuthenticated
         serializer = HouseDetailSerializer(data=request.data)
+
         if serializer.is_valid():
             # save를 호출하면 create 또는 update가 호출되고, 각 메소드들은 validated_data를 가진다. 다른 말로, validated_data에 데이터를 추가하고 싶다면, save 함수 안에 데이터를 넣어주면 된다.
             category_id = request.data.get("category")
@@ -52,73 +69,26 @@ class Houses(APIView):
             return Response(serializer.errors)
 
 
-"""
-{
-    "id":1,
-    "host": {
-        "name": "admin",
-        "username": "admin",
-        "avatar": null
-    },
-    "amenities": [
-        {
-            "name": "Kitchen",
-            "description": null
-        }
-    ],
-    "category": {
-        "name": "Penthouse",
-        "kind": "houses"
-    },
-    "name": "A Beautiful Penthouse",
-    "country": "U.S.A",
-    "city": "Newyork City",
-    "price": 350,
-    "rooms": 7,
-    "toilets": 4,
-    "description": "This Penthouse is the most beautiful one in Newyork, U.S.A",
-    "address": "somewhere in Newyork",
-    "pet_allowed": true,
-    "kind": "entire_place"
-}
-"""
-
-
 class HouseDetail(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
     def get_object(self, id):
         return get_object_or_404(House, id=id)
 
     def get(self, request, id):
         house = self.get_object(id)
-        serializer = HouseDetailSerializer(house)
+        context = {"user": request.user}
+        # context로 동적 필드를 정의할 수 있다.
+        serializer = HouseDetailSerializer(house, context=context)
         return Response(serializer.data)
 
     def put(self, request, id):
         user = request.user
         house = self.get_object(id)
-        if not user.is_authenticated:
-            raise NotAuthenticated
+
+        # user validation
         if user != house.host:
             raise PermissionDenied
-
-        # category validation
-        category = request.data.get("category")
-
-        if category.kind == Category.CategoryKindChoices.EXPERIENCES:
-            raise ParseError("The category kind should be 'houses'.")
-
-        if not Category.objects.exists(name=category.name):
-            raise ParseError("The category name does not exist.")
-
-        # amenity validation
-        amenities = request.data.get("amenities")
-        pop_list = []
-        for index, amenity in enumerate(amenities):
-            if not Amenity.objects.exists(name=amenity.name):
-                pop_list.append(index)
-
-        for index in pop_list[::-1]:
-            amenities.pop(index)
 
         try:
             with transaction.atomic():
@@ -127,28 +97,109 @@ class HouseDetail(APIView):
                     data=request.data,
                     partial=True,
                 )
-
                 if serializer.is_valid():
-                    updated_amenity = serializer.save()
+                    # category validation
+                    category_id = request.data.get("category")
+                    category = get_object_or_404(Category, id=category_id)
+
+                    if category.kind == Category.CategoryKindChoices.EXPERIENCES:
+                        raise ParseError("The category kind should be 'houses'.")
+
+                    # amenity validation
+                    amenities = request.data.get("amenities")
+                    house.amenities.clear()
+                    for amenity_id in amenities:
+                        if Amenity.objects.all().filter(id=amenity_id).exists():
+                            amenity = get_object_or_404(Amenity, id=amenity_id)
+                            house.amenities.add(amenity)
+
+                    # save
+                    updated_amenity = serializer.save(category=category)
                     serializer = HouseDetailSerializer(updated_amenity)
                     return Response(serializer.data)
-                else:
-                    return Response(serializer.errors)
         except Exception:
             raise ParseError("Failed to update the house info.")
 
     def delete(self, request, id):
         user = request.user
         house = self.get_object(id)
-        if not user.is_authenticated:
-            raise NotAuthenticated
+
         if user == house.host:
             raise PermissionDenied
         house.delete()
-        return Response(status=HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class HouseReviews(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_object(self, id):
+        return get_object_or_404(House, id=id)
+
+    def get(self, request, id):
+        # 다음의 try - except문을 잘 이해해볼 것
+        page_size = settings.PAGE_SIZE
+        try:
+            page = request.query_params.get("page", 1)
+            page = int(page)
+            if page < 1:
+                raise ValueError("Negative indexing error")
+            page_start = (page - 1) * 3
+            page_end = page_start + page_size
+        except ValueError:
+            page = 1
+            page_start = 0
+            page_end = page_start + page_size
+
+        house = self.get_object(id)
+        serializer = ReviewSerializer(
+            house.reviews.all()[page_start:page_end],  # 0 <= x < 3
+            many=True,
+        )
+        return Response(serializer.data)
+
+    def post(self, request, id):
+        house = self.get_object(id)
+        serializer = ReviewSerializer(data=request.data)
+        if serializer.is_valid():
+            review = serializer.save(
+                user=request.user,
+                house=house,
+            )
+            serializer = ReviewSerializer(review)
+            return Response(serializer.data)
+
+
+class HouseAmenities(APIView):
+    def get_object(self, id):
+        return get_object_or_404(House, id=id)
+
+    def get(self, request, id):
+        # 다음의 try - except문을 잘 이해해볼 것
+        page_size = 3
+        try:
+            page = request.query_params.get("page", 1)
+            page = int(page)
+            if page < 1:
+                raise ValueError("Negative indexing error")
+            page_start = (page - 1) * 3
+            page_end = page_start + page_size
+        except ValueError:
+            page = 1
+            page_start = 0
+            page_end = page_start + page_size
+
+        house = self.get_object(id)
+        serializer = AmenitySerializer(
+            house.amenities.all()[page_start:page_end],
+            many=True,
+        )
+        return Response(serializer.data)
 
 
 class Amenities(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
     def get(self, request):
         all_amenities = Amenity.objects.all()
         serializer = AmenitySerializer(all_amenities, many=True)
@@ -165,6 +216,8 @@ class Amenities(APIView):
 
 
 class AmenityDetail(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
     def get_object(self, id):
         return get_object_or_404(Amenity, id=id)
 
@@ -189,4 +242,72 @@ class AmenityDetail(APIView):
     def delete(self, request, id):
         amenity = self.get_object(id)
         amenity.delete()
-        return Response(HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class HousePhotos(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_object(self, id):
+        return get_object_or_404(House, id=id)
+
+    def post(self, request, id):
+        house = self.get_object(id)
+
+        if request.user != house.host:
+            raise PermissionDenied
+
+        serializer = PhotoSerializer(data=request.data)
+
+        if serializer.is_valid():
+            # save에 인자를 넣어 cleaned_data에 데이터를 추가할 수 있다.
+            photo = serializer.save(house=house)
+            serializer = PhotoSerializer(photo)
+            return Response(serializer.data)
+
+        else:
+            return Response(serializer.errors)
+
+
+class HouseBookings(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_object(self, id):
+        return get_object_or_404(House, id=id)
+
+    def get(self, request, id):
+        """
+        The Other Option
+        bookings = Booking.objects.filter(house__id=id)
+        DB를 두 번 조회할 필요가 없다. 하지만 조회하려는 방이 없을 때나 방에 예약이 없을 때나 빈 QuerySet이라는 같은 결과를 반환하여 구분할 수 없게 된다.
+
+        """
+
+        """
+        월별 혹은 연도별로 조회할 수 있게 하려면?
+        # 11.23
+        """
+
+        house = self.get_object(id)
+        now = timezone.now().date()
+        bookings = Booking.objects.filter(
+            house=house,
+            kind=Booking.BookingKindChoices.HOUSE,
+            check_in__gt=now,
+        )
+        serializer = PublicBookingSerializer(bookings, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, id):
+        house = self.get_object(id)
+        serializer = CreateHouseBookingSerializer(data=request.data)
+        if serializer.is_valid():
+            booking = serializer.save(
+                user=request.user,
+                house=house,
+                kind=Booking.BookingKindChoices.HOUSE,
+            )
+            serializer = PublicBookingSerializer(booking)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

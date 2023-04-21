@@ -4,12 +4,12 @@ from common.models import CommonModel
 
 class Photo(CommonModel):
 
-    """ Photo Model Definition """
+    """Photo Model Definition"""
 
     def __str__(self):
         return "Photo File"
 
-    file = models.ImageField()
+    file = models.URLField()
     description = models.CharField(
         max_length=140,
     )
@@ -31,12 +31,12 @@ class Photo(CommonModel):
 
 class Video(CommonModel):
 
-    """ Video Model Definition """
+    """Video Model Definition"""
 
     def __str__(self):
         return "Video File"
 
-    file = models.FileField()
+    file = models.URLField()
     experience = models.OneToOneField(
         "experiences.Experience",
         on_delete=models.CASCADE,
