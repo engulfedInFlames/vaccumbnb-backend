@@ -78,9 +78,10 @@ class HouseDetailSerializer(ModelSerializer):
         model = House
         fields = (
             "id",
-            "host",
+            "name",
             "rating",
             "is_on_wishlist",
+            "host",
             "country",
             "city",
             "address",

@@ -12,16 +12,16 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+import environ
+
+env = environ.Env()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-cw22m5ppoa&y)q19@&fyof=#sf!u5@qi3#8ex+ng(m8v(2gxpu"
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -151,4 +151,21 @@ MEDIA_ROOT = "uploads"  # ❌ "/uploads"
 MEDIA_URL = "uploads/"  # "/"로 끝나야 하며, MEDIA_ROOT와 동일한 경로일 필요는 없다.
 # ↑ MEDIA_URL을 설정한 후에 admin에서 해당 파일에 접근하면 지정된 url로 이동한다. 하지만 django는 해당 url에 대해서 모르기 때문에 urls.py에서 해당 경로를 노출시켜야 한다.
 
-# ↑ 하지만 위 방법은 개발 단계에서만 사용하는 것이 권장되며, 배포 단계에서는 보안 위험(서버에 아무 파일이나 업로드되는 것) 때문에 다른 방법을 사용하는 것이 권장된다. 클라이언트가 업로드 하는 파일이 서버에 직접 저장되어서는 안 된다. 대신, django는 파일의 url만을 알게 하고,  다른 서버에 저장되게 해야 한다.  Docs의 "Serving files uploaded by a user during development" 참조.
+# ↑ 하지만 위 방법은 개발 단계에서만 사용하는 것이 권장되며, 배포 단계에서는 보안 위험(서버에 아무 파일이나 업로드되는 것) 때문에 다른 방법을 사용하는 것이 권장된다. 클라이언트가 업로드 하는 파일이 서버에 직접 저장되어서는 안 된다. 대신, django는 파일의 url만을 알게 하고, 다른 서버에 저장되게 해야 한다.  Docs의 "Serving files uploaded by a user during development" 참조.
+
+
+"""
+↓ Default
+"DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ]
+
+1. 로그인을 시도하면 장고가 클래스 안의 인증 방식들을 차례대로 시도한다. 포스트맨에 쿠키를 담아 보내지 않으면, DRF의 인증 방식으로는 로그인할 수 없다.
+2. "rest_framework.authentication.SessionAuthentication" 클래스를 사용하게 되면, CSRF 토큰 인증을 해야 한다.
+"""
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ]
+}

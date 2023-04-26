@@ -19,7 +19,7 @@ class CustomUserAdmin(UserAdmin):
                     "gender",
                     "language",
                     "currency",
-                    ),
+                ),
                 "classes": ("wide",),
             },
         ),
@@ -32,7 +32,7 @@ class CustomUserAdmin(UserAdmin):
                     "is_superuser",
                     "groups",
                     "user_permissions",
-                    ),
+                ),
                 "classes": ("collapse",),
             },
         ),
@@ -50,4 +50,4 @@ class CustomUserAdmin(UserAdmin):
         "email",
         "name",
         "is_host",
-        )
+    )

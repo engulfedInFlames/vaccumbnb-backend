@@ -38,7 +38,6 @@ class Houses(APIView):
         serializer = HouseDetailSerializer(data=request.data)
 
         if serializer.is_valid():
-            # save를 호출하면 create 또는 update가 호출되고, 각 메소드들은 validated_data를 가진다. 다른 말로, validated_data에 데이터를 추가하고 싶다면, save 함수 안에 데이터를 넣어주면 된다.
             category_id = request.data.get("category")
 
             if not category_id:
@@ -49,6 +48,7 @@ class Houses(APIView):
             if category.kind == Category.CategoryKindChoices.EXPERIENCES:
                 raise ParseError("The category kind should be 'houses'.")
 
+            print("Category Validation")
             try:
                 with transaction.atomic():  # try-except를 안에서 사용하면 transaction이 오류가 발생한지 모른다.
                     house = serializer.save(
@@ -57,16 +57,18 @@ class Houses(APIView):
                     )
 
                     amenities = request.data.get("amenities")
-                    for amenity_id in amenities:
-                        amenity = Amenity.objects.get(id=amenity_id)
-                        # Work with many to many field. Use "add" method.
-                        house.amenities.add(amenity)  # <-> remove
+
+                    if amenities is not None:
+                        for amenity_id in amenities:
+                            amenity = Amenity.objects.get(id=amenity_id)
+                            # Work with many to many field. Use "add" method.
+                            house.amenities.add(amenity)  # <-> remove
                     serializer = HouseDetailSerializer(house)
                     return Response(serializer.data)
             except Exception:
                 raise ParseError("Amenity not found.")
         else:
-            return Response(serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class HouseDetail(APIView):
@@ -211,8 +213,12 @@ class Amenities(APIView):
         if serializer.is_valid():
             # save()는 내부 메소드 create, 또는 update를 호출하고 객체를 반환한다.
             # 브라우저에서 읽기 쉬해서는 JSON Encoded가 필요!
-            amenity = AmenitySerializer(serializer.save())
-            return Response(amenity.data)
+            amenity = serializer.save()
+            serializer = AmenitySerializer(amenity)
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors)
 
 
 class AmenityDetail(APIView):
