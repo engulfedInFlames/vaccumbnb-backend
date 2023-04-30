@@ -10,4 +10,6 @@ urlpatterns = [
     path("@<str:username>/", views.You.as_view(), name="you"),
     path("login/", views.Login.as_view(), name="login"),
     path("logout/", views.Logout.as_view()),
+    path("github-login/", views.GithubLogin.as_view()),
+    path("kakao-login/", views.KakaoLogin.as_view()),
 ]

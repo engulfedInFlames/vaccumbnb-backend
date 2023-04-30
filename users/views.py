@@ -1,12 +1,14 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import get_object_or_404
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import authenticate, login, logout
+from django.conf import settings
 
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ParseError
+from rest_framework.exceptions import ParseError, bad_request, NotAuthenticated
 from rest_framework import status
+import requests
 
 from .models import CustomUser
 from . import serializers
@@ -132,3 +134,123 @@ class Password(APIView):
             return Response(status=status.HTTP_200_OK)
         else:
             raise ParseError("Not Correct Password")
+
+
+class GithubLogin(APIView):
+    def post(self, request):
+        try:
+            # code는 한 번만 사용할 수 있다. REACT는 개발 모드에서 스크린을 두 번 렌더링한다.
+            code = request.data.get("code")
+            response = requests.post(
+                f"https://github.com/login/oauth/access_token?code={code}&client_id={settings.GITHUB_CLIENT_ID}&client_secret={settings.GITHUB_CLIENT_SECRET}",
+                headers={"Accept": "application/json"},
+            )
+            # print(response.json())
+            access_token = response.json().get("access_token")
+            response = requests.get(
+                "https://api.github.com/user",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/json",
+                },
+            )
+            user_data = response.json()
+            # print(user_data)
+
+            """
+            깃허브로부터 받은 email 리스트가 장고 DB에 있으면 로그인, 없으면 회원가입이라고 유추할 수 있다.
+            """
+
+            response = requests.get(
+                "https://api.github.com/user/emails",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/json",
+                },
+            )
+            user_emails = response.json()
+
+            user_email = None
+            for email in user_emails:
+                if email.get("primary") and email.get("verified"):
+                    user_email = email
+
+            if user_email is None:
+                raise bad_request
+
+            try:
+                user = CustomUser.objects.get(email=user_email.get("email"))
+                login(request, user)
+                return Response(status=status.HTTP_200_OK)
+            except CustomUser.DoesNotExist:
+                user = (
+                    CustomUser.objects.create_user(
+                        # username은 unique함에 유의하자
+                        username=user_data.get("login"),
+                        email=user_email.get("email"),
+                        name=user_data.get("name", ""),
+                        avatar=user_data.get("avatar_url"),
+                    ),
+                )
+                user.set_unusable_password()
+                # has_usable_password()는 유저의 password가 usable인지 확인한다.
+                user.save()
+                login(request, user)
+                return Response(status=status.HTTP_200_OK)
+        except Exception:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class KakaoLogin(APIView):
+    def post(self, request):
+        try:
+            code = request.data.get("code")
+            response = requests.post(
+                "https://kauth.kakao.com/oauth/token",
+                headers={
+                    "Content-type": "application/x-www-form-urlencoded;charset=utf-8",
+                },
+                data={
+                    "grant_type": "authorization_code",
+                    "client_id": "39669f9889ada8c1d0b149f32dfa7c20",
+                    "redirect_uri": "http://127.0.0.1:3000/social/kakao/",
+                    "code": code,
+                    "client_secret": settings.KAKAO_CLIENT_SECRET,
+                },
+            )
+            access_token = response.json().get("access_token")
+            response = requests.get(
+                "https://kapi.kakao.com/v2/user/me",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-type": "application/x-www-form-urlencoded;charset=utf-8",
+                },
+            )
+            user_data = response.json()
+            kakao_account = user_data.get("kakao_account")
+            profile = kakao_account.get("profile")
+
+            if not kakao_account.get("is_email_verified"):
+                raise NotAuthenticated
+
+            try:
+                user = CustomUser.objects.get(email=kakao_account.get("email"))
+                login(request, user)
+                return Response(status=status.HTTP_200_OK)
+
+            except CustomUser.DoesNotExist:
+                user = (
+                    CustomUser.objects.create_user(
+                        # username은 unique함에 유의하자
+                        username=profile.get("nickname"),
+                        email=kakao_account.get("email"),
+                        name=profile.get("nickname"),
+                        avatar=profile.get("profile_image_url"),
+                    ),
+                )
+                user.set_unusable_password()
+                user.save()
+                login(request, user)
+                return Response(status=status.HTTP_200_OK)
+        except Exception:
+            return Response(status=status.HTTP_400_BAD_REQUEST)

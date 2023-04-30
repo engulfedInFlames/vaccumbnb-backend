@@ -12,6 +12,8 @@ class Photo(CommonModel):
     file = models.URLField()
     description = models.CharField(
         max_length=140,
+        null=True,
+        blank=True,
     )
     house = models.ForeignKey(
         "houses.House",

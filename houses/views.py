@@ -1,3 +1,4 @@
+from time import sleep
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.conf import settings
@@ -13,7 +14,6 @@ from .models import House, Amenity
 from .serializers import HouseListSerializer, HouseDetailSerializer, AmenitySerializer
 
 from categories.models import Category
-from medias.models import Photo
 from bookings.models import Booking
 from reviews.serializers import ReviewSerializer
 from medias.serializers import PhotoSerializer
@@ -78,6 +78,7 @@ class HouseDetail(APIView):
         return get_object_or_404(House, id=id)
 
     def get(self, request, id):
+        sleep(2)
         house = self.get_object(id)
         context = {"user": request.user}
         # context로 동적 필드를 정의할 수 있다.

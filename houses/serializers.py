@@ -31,11 +31,13 @@ class HouseListSerializer(ModelSerializer):
         model = House
         fields = (
             "id",
-            "name",
             "rating",
             "country",
             "city",
-            "category",
+            "name",
+            "description",
+            "price",
+            "amenities",
             "photos",
             "is_host",
         )
@@ -74,6 +76,31 @@ class HouseDetailSerializer(ModelSerializer):
     is_on_wishlist = SerializerMethodField()
     reviews = SerializerMethodField()
 
+    def get_rating(self, house):
+        return house.rating()
+
+    def get_is_host(self, house):
+        user = self.context.get("user")
+        if user.is_authenticated:
+            return house.host == user
+        return False
+
+    def get_reviews(self, house):
+        return house.reviews.all().count()
+
+    def get_is_on_wishlist(self, house):
+        user = self.context.get("user")
+        if user.is_authenticated:
+            # 1. 해당 user의 wishlist를 쿼리
+            # 2. 해당 wishlist에 id가 일치하는 house를 쿼리
+            is_house_on_wishlist = Wishlist.objects.filter(
+                user=user,
+                houses__id=house.id,
+            ).exists()
+            return is_house_on_wishlist
+
+        return False
+
     class Meta:
         model = House
         fields = (
@@ -97,25 +124,3 @@ class HouseDetailSerializer(ModelSerializer):
             "photos",
             "is_host",
         )
-
-    # 메소드 이름은 반드시 "get_field_name"이어야 한다. 두 번째 인자에는 serializer를 호출하는 object가 호출된다.
-    def get_rating(self, house):
-        return house.rating()
-
-    def get_is_host(self, house):
-        user = self.context.get("user")
-        return house.host == user
-
-    def get_reviews(self, house):
-        return house.reviews.all().count()
-
-    def get_is_on_wishlist(self, house):
-        user = self.context.get("user")
-        # 1. 해당 user의 wishlist를 쿼리
-        # 2. 해당 wishlist에 id가 일치하는 house를 쿼리
-        is_house_on_wishlist = Wishlist.objects.filter(
-            user=user,
-            houses__id=house.id,
-        ).exists()
-
-        return is_house_on_wishlist
