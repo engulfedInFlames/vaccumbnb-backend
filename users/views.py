@@ -96,9 +96,13 @@ class Login(APIView):
         if user:
             # django는 유저를 로그인시키고, 백엔드에서 유저 정보가 담긴 세션을 생성하고, 유저에게 쿠키를 전달한다.
             login(request, user)
-            return Response(status=status.HTTP_202_ACCEPTED)
+            return Response(
+                {"result": "Login Success!"}, status=status.HTTP_202_ACCEPTED
+            )
         else:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"result": "Login Failed."}, status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class Logout(APIView):

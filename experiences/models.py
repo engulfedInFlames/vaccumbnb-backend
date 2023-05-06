@@ -5,10 +5,7 @@ from django.conf import settings
 
 class Experience(CommonModel):
 
-    """ Experience Model Definiiton """
-
-    def __str__(self) -> str:
-        return self.name
+    """Experience Model Definiiton"""
 
     country = models.CharField(
         max_length=50,
@@ -24,7 +21,7 @@ class Experience(CommonModel):
     host = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="experiences"
+        related_name="experiences",
     )
     price = models.PositiveIntegerField()
     address = models.CharField(
@@ -33,35 +30,17 @@ class Experience(CommonModel):
     start = models.TimeField()
     end = models.TimeField()
     description = models.TextField()
-    perks = models.ManyToManyField(
-        "experiences.Perk",
-        related_name="experiences"
+    amenities = models.ManyToManyField(
+        "amenities.Amenity",
+        related_name="experiences",
     )
     category = models.ForeignKey(
         "categories.Category",
+        related_name="experiences",
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        on_delete=models.SET_NULL,
-        related_name="experiences"
     )
-
-
-class Perk(CommonModel):
-
-    """ Perk Model Definition """
 
     def __str__(self) -> str:
         return self.name
-
-    name = models.CharField(
-        max_length=100,
-    )
-    details = models.CharField(
-        max_length=250,
-        blank=True,
-        default="",
-    )
-    explanation = models.TextField(
-        blank=True,
-        default="",
-    )

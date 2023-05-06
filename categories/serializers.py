@@ -6,21 +6,18 @@ class CategorySerializer(serializers.ModelSerializer):
 
     """
     Serializer Definition for Category
-    You can determine what you want to show or not
     """
 
     class Meta:
         model = Category
-        # fields로 include, 또는 exclude로 exclude
-        # 전체는 fields = "__all__"
         fields = (
+            "id",
             "name",
             "kind",
         )
 
-    """ Below is some code to get an idea of how DRF works """
-
-    """
+    """ Below is some code to get an idea of how DRF works
+    
     # read_only로
     pk = serializers.IntegerField(read_only=True)
     name = serializers.CharField(

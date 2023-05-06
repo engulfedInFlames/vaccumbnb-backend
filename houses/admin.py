@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import House, Amenity
+from django.db.models.query import QuerySet
+from .models import House
 
 
 @admin.action(description="Set all prices to zero")
@@ -30,7 +31,6 @@ class HouseAdmin(admin.ModelAdmin):
         "city",
         "pet_allowed",
         "kind",
-        "amenities",
     )
 
     # 기본적으로 django는 __contains로 검색
@@ -46,18 +46,3 @@ class HouseAdmin(admin.ModelAdmin):
     # models에서도, admin에서도 list_display 내에 들어갈 변수를 정의할 수 있다.
     # def total_amenities(self, house):
     #     return house.amenities.count()
-
-
-@admin.register(Amenity)
-class AmenityAdmin(admin.ModelAdmin):
-    list_display = (
-        "name",
-        "description",
-        "created_at",
-        "updated_at",
-    )
-
-    readonly_fields = (
-        "created_at",
-        "updated_at",
-    )

@@ -32,6 +32,7 @@ CUSTOM_APPS = [
     "users.apps.UsersConfig",
     "houses.apps.HousesConfig",
     "experiences.apps.ExperiencesConfig",
+    "amenities.apps.AmenitiesConfig",
     "categories.apps.CategoriesConfig",
     "reviews.apps.ReviewsConfig",
     "wishlists.apps.WishlistsConfig",
@@ -133,7 +134,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "users.CustomUser"
 
-PAGE_SIZE = 3
+PAGE_SIZE = 5
 
 # ✅ For media files
 # ↓ 업로드된 파일이 저장될 경로를 지정. 파일이 실제로 있을 위치

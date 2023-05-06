@@ -4,10 +4,7 @@ from common.models import CommonModel
 
 class Category(CommonModel):
 
-    """ Category for House or Experience """
-
-    def __str__(self) -> str:
-        return f"{self.kind.title()} : {self.name}"
+    """Category for House or Experience"""
 
     class Meta:
         verbose_name_plural = "Categories"
@@ -21,4 +18,6 @@ class Category(CommonModel):
         max_length=15,
         choices=CategoryKindChoices.choices,
     )
-    
+
+    def __str__(self) -> str:
+        return f"{self.kind.title()} : {self.name}"
