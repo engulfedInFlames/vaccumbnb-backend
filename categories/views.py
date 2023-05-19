@@ -1,13 +1,62 @@
-from rest_framework.viewsets import ModelViewSet
+from django.shortcuts import get_object_or_404
+
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.exceptions import PermissionDenied
+
 from .models import Category
 from .serializers import CategorySerializer
 
 
-# ModelViewSet을 사용해야 할 때와 APIView로 Custom View를 사용해야 할 때를 구분할 줄 알아야 한다.
+class CategoryList(APIView):
+    pass
 
 
+class CategoryDetail(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_object(self, pk):
+        return get_object_or_404(Category, pk=pk)
+
+    def get(self, request, pk):
+        category = self.get_object(pk)
+        serializer = CategorySerializer(category)
+        return Response(serializer.data, status=HTTP_200_OK)
+
+    def put(self, request, pk):
+        if not request.user.is_staff:
+            raise PermissionDenied
+
+        category = self.get_object(pk)
+        serializer = CategorySerializer(
+            category,
+            data=request.data,
+            partial=True,
+        )
+
+        if serializer.is_valid():
+            category = serializer.save()
+            serializer = CategorySerializer(category)
+            return Response(serializer.data, status=HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        if not request.user.is_staff:
+            raise PermissionDenied
+
+        category = self.get_object(pk)
+        category.delete()
+
+        return Response(status=HTTP_200_OK)
+
+
+""" Below is some come to get an idea of how ModelViewSet works
 class HouseCategoryViewSet(ModelViewSet):
-    # ModelViewSet은 1. serializer, 2 ViewSet의 object, 두 가지를 알아야 한다.
+    # ModelViewSet은 1. serializer, 2 queryset, 두 가지를 반드시 알아야 한다.
+    # ModelViewSet을 사용해야 할 때와 APIView로 Custom View를 사용해야 할 때를 구분할 줄 알아야 한다.
 
     serializer_class = CategorySerializer
     queryset = Category.objects.all().filter(kind="houses")
@@ -16,6 +65,7 @@ class HouseCategoryViewSet(ModelViewSet):
 class ExperienceCategoryViewSet(ModelViewSet):
     serializer_class = CategorySerializer
     queryset = Category.objects.all().filter(kind="experiences")
+"""
 
 
 """ Below is some code to get an idea of how the decorator 'api_view' works
@@ -73,15 +123,12 @@ def one_category(request, _id):
         return Response(context)
 
     if request.method == "PUT":
-        # serializer는 category의 모양을 알고 있기 때문에, 갱신할 category 객체를 인자로 넘기기만 하면 된다.
         serializer = CategorySerializer(
             category,
             data=request.data,
             partial=True,  # serializer에게 부분만 변경, 즉, 갱신할 것임을 알림.
         )
         if serializer.is_valid():
-            # partial=True 이므로, serializer는 create가 아닌 update 메소드를 호출
-            # serializer의 save 메소드는 Model의 save 메소드와 다르다. 상황에 따라 어떤 함수를 호출할 것인지를 결정한다.
             updated_category = CategorySerializer(serializer.save())
             return Response(updated_category.data)
         else:

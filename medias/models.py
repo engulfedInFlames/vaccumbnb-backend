@@ -39,7 +39,17 @@ class Video(CommonModel):
         return "Video File"
 
     file = models.URLField()
-    experience = models.OneToOneField(
+    house = models.ForeignKey(
+        "houses.House",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="videos",
+    )
+    experience = models.ForeignKey(
         "experiences.Experience",
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="videos",
     )

@@ -10,8 +10,8 @@ class Category(CommonModel):
         verbose_name_plural = "Categories"
 
     class CategoryKindChoices(models.TextChoices):
-        HOUSE = "houses", "Houses"
-        EXPERIENCES = "experiences", "Experiences"
+        HOUSE = "house", "House"
+        EXPERIENCES = "experience", "Experience"
 
     name = models.CharField(max_length=50)
     kind = models.CharField(

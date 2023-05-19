@@ -1,14 +1,14 @@
 from django.db import models
 from django.conf import settings
 
+
 from common.models import CommonModel
 
 
 class Amenity(CommonModel):
 
-    """Amenity Model Definiton
-
-    parent가 house이면 description에 null을 할당한다.
+    """
+    Amenity Model Definiton
     """
 
     class ParentGroupChoices(models.TextChoices):
@@ -34,8 +34,10 @@ class Amenity(CommonModel):
     )
     host = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="amenities",
+        null=True,
+        blank=True,
     )
 
     def __str__(self) -> str:

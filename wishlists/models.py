@@ -4,11 +4,7 @@ from django.conf import settings
 
 
 class Wishlist(CommonModel):
-
-    """ Wishlist Model Definition """
-
-    def __str__(self) -> str:
-        return self.name
+    """Wishlist Model Definition"""
 
     name = models.CharField(
         max_length=150,
@@ -22,7 +18,8 @@ class Wishlist(CommonModel):
         related_name="wishlists",
     )
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="wishlists",
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="wishlist"
     )
+
+    def __str__(self) -> str:
+        return f"{self.user.username}'s wishlist"

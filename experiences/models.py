@@ -1,6 +1,8 @@
 from django.db import models
-from common.models import CommonModel
 from django.conf import settings
+from django.urls import reverse
+
+from common.models import CommonModel
 
 
 class Experience(CommonModel):
@@ -33,6 +35,7 @@ class Experience(CommonModel):
     amenities = models.ManyToManyField(
         "amenities.Amenity",
         related_name="experiences",
+        blank=True,
     )
     category = models.ForeignKey(
         "categories.Category",
@@ -44,3 +47,6 @@ class Experience(CommonModel):
 
     def __str__(self) -> str:
         return self.name
+
+    def get_absolute_url(self):
+        return reverse("expeirence_detail", kwargs={"pk": self.pk})

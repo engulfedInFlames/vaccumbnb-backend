@@ -11,20 +11,16 @@ from rest_framework.exceptions import ParseError, PermissionDenied
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 from .models import Experience
-from .serializers import (
-    CreateExperienceSerializer,
-    ExperienceListSerializer,
-    ExperienceDetailSerializer,
-)
+from . import serializers
 
 from amenities.models import Amenity
 from categories.models import Category
 from bookings.models import Booking
 from amenities.serializers import AmenityListSerializer
-from reviews.serializers import ReviewSerializer
+from reviews import serializers as reviewSerializers
 from medias.serializers import PhotoSerializer
 from bookings.serializers import (
-    PublicBookingSerializer,
+    BookingListSerializer,
     CreateExperienceBookingSerializer,
 )
 
@@ -35,7 +31,7 @@ class ExperienceList(APIView):
     def get(self, request):
         experiences = Experience.objects.all()
         context = {"user": request.user}
-        serializer = ExperienceListSerializer(
+        serializer = serializers.ExperienceListSerializer(
             experiences,
             many=True,
             context=context,
@@ -44,15 +40,15 @@ class ExperienceList(APIView):
 
     def post(self, request):
         user = request.user
-        serializer = CreateExperienceSerializer(data=request.data)
+        serializer = serializers.CreateExperienceSerializer(data=request.data)
 
         if serializer.is_valid():
-            category_id = request.data.get("category")
+            category_pk = request.data.get("category")
 
-            if not category_id:
+            if not category_pk:
                 raise ParseError("Category is required.")
 
-            category = get_object_or_404(Category, id=category_id)
+            category = get_object_or_404(Category, pk=category_pk)
 
             if category.kind == Category.CategoryKindChoices.EXPERIENCES:
                 raise ParseError("The category kind should be 'experiences'.")
@@ -67,10 +63,10 @@ class ExperienceList(APIView):
                     amenities = request.data.get("amenities")
 
                     if amenities is not None:
-                        for amenity_id in amenities:
-                            amenity = get_object_or_404(Amenity, id=amenity_id)
+                        for amenity_pk in amenities:
+                            amenity = get_object_or_404(Amenity, pk=amenity_pk)
                             experience.amenities.add(amenity)
-                    serializer = ExperienceDetailSerializer(experience)
+                    serializer = serializers.ExperienceDetailSerializer(experience)
                     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
             except Exception:
@@ -82,20 +78,20 @@ class ExperienceList(APIView):
 class ExperienceDetail(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def get_object(self, id):
-        return get_object_or_404(Experience, id=id)
+    def get_object(self, pk):
+        return get_object_or_404(Experience, pk=pk)
 
-    def get(self, request, id):
+    def get(self, request, pk):
         sleep(0.5)
-        experience = self.get_object(id)
+        experience = self.get_object(pk)
         context = {"user": request.user}
         # context로 동적 필드를 정의할 수 있다.
-        serializer = ExperienceDetailSerializer(experience, context=context)
+        serializer = serializers.ExperienceDetailSerializer(experience, context=context)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def put(self, request, id):
+    def put(self, request, pk):
         user = request.user
-        house = self.get_object(id)
+        house = self.get_object(pk)
 
         # user validation
         if user != house.host:
@@ -105,12 +101,12 @@ class ExperienceDetail(APIView):
             with transaction.atomic():
                 amenities = request.data.pop("amenities", None)
                 experience.amenities.clear()
-                for amenity_id in amenities:
-                    if Amenity.objects.filter(id=amenity_id).exists():
-                        amenity = get_object_or_404(Amenity, id=amenity_id)
+                for amenity_pk in amenities:
+                    if Amenity.objects.filter(pk=amenity_pk).exists():
+                        amenity = get_object_or_404(Amenity, pk=amenity_pk)
                         experience.amenities.add(amenity)
 
-                serializer = ExperienceDetailSerializer(
+                serializer = serializers.ExperienceDetailSerializer(
                     experience,
                     data=request.data,
                     partial=True,
@@ -118,7 +114,7 @@ class ExperienceDetail(APIView):
 
                 if serializer.is_valid():
                     experience = serializer.save()
-                    serializer = ExperienceDetailSerializer(experience)
+                    serializer = serializers.ExperienceDetailSerializer(experience)
 
                     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -130,8 +126,8 @@ class ExperienceDetail(APIView):
         except Exception:
             raise ParseError("Failed to update the experience info.")
 
-    def delete(self, request, id):
-        house = self.get_object(id)
+    def delete(self, request, pk):
+        house = self.get_object(pk)
 
         if request.user != house.host:
             raise PermissionDenied
@@ -143,10 +139,10 @@ class ExperienceDetail(APIView):
 class ExperienceReviews(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def get_object(self, id):
-        return get_object_or_404(Experience, id=id)
+    def get_object(self, pk):
+        return get_object_or_404(Experience, pk=pk)
 
-    def get(self, request, id):
+    def get(self, request, pk):
         page_size = settings.PAGE_SIZE
 
         try:
@@ -155,6 +151,7 @@ class ExperienceReviews(APIView):
 
             if page < 1:
                 raise ValueError("Negative indexing error")
+
             page_start = (page - 1) * page_size
             page_end = page_start + page_size
 
@@ -162,22 +159,22 @@ class ExperienceReviews(APIView):
             page_start = 0
             page_end = page_start + page_size
 
-        experience = self.get_object(id)
-        serializer = ReviewSerializer(
+        experience = self.get_object(pk)
+        serializer = reviewSerializers.ReviewListSerializer(
             experience.reviews.all()[page_start:page_end],  # 0 <= x < 3
             many=True,
         )
         return Response(serializer.data)
 
-    def post(self, request, id):
-        experience = self.get_object(id)
-        serializer = ReviewSerializer(data=request.data)
+    def post(self, request, pk):
+        experience = self.get_object(pk)
+        serializer = reviewSerializers.CreateReviewSerializer(data=request.data)
         if serializer.is_valid():
             review = serializer.save(
                 user=request.user,
                 house=experience,
             )
-            serializer = ReviewSerializer(review)
+            serializer = reviewSerializers.ReviewDetailSerializer(review)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         else:
@@ -185,7 +182,7 @@ class ExperienceReviews(APIView):
 
 
 class ExperienceAmenities(APIView):
-    def get(self, request, id):
+    def get(self, request, pk):
         page_size = settings.PAGE_SIZE
 
         try:
@@ -202,7 +199,7 @@ class ExperienceAmenities(APIView):
             page_start = 0
             page_end = page_start + page_size
 
-        experience = get_object_or_404(Experience, id=id)
+        experience = get_object_or_404(Experience, pk=pk)
         serializer = AmenityListSerializer(
             experience.amenities.all()[page_start:page_end],
             many=True,
@@ -214,11 +211,11 @@ class ExperienceAmenities(APIView):
 class ExperiencePhotos(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def get_object(self, id):
-        return get_object_or_404(Experience, id=id)
+    def get_object(self, pk):
+        return get_object_or_404(Experience, pk=pk)
 
-    def post(self, request, id):
-        experience = self.get_object(id)
+    def post(self, request, pk):
+        experience = self.get_object(pk)
 
         if request.user != experience.host:
             raise PermissionDenied
@@ -238,22 +235,22 @@ class ExperiencePhotos(APIView):
 class ExperienceBookings(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def get_object(self, id):
-        return get_object_or_404(Experience, id=id)
+    def get_object(self, pk):
+        return get_object_or_404(Experience, pk=pk)
 
-    def get(self, request, id):
-        experience = self.get_object(id)
+    def get(self, request, pk):
+        experience = self.get_object(pk)
         now = timezone.now().date()
         bookings = Booking.objects.filter(
             experience=experience,
             kind=Booking.BookingKindChoices.EXPERIENCE,
             check_in__gt=now,
         )
-        serializer = PublicBookingSerializer(bookings, many=True)
+        serializer = BookingListSerializer(bookings, many=True)
         return Response(serializer.data)
 
-    def post(self, request, id):
-        experience = self.get_object(id)
+    def post(self, request, pk):
+        experience = self.get_object(pk)
         serializer = CreateExperienceBookingSerializer(data=request.data)
         if serializer.is_valid():
             booking = serializer.save(
@@ -261,10 +258,7 @@ class ExperienceBookings(APIView):
                 experience=experience,
                 kind=Booking.BookingKindChoices.EXPERIENCE,
             )
-            serializer = PublicBookingSerializer(booking)
+            serializer = BookingListSerializer(booking)
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-""

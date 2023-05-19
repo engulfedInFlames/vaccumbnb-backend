@@ -1,0 +1,70 @@
+What I Learned 💕
+
+0. Challenges
+
+# 11.22
+    GET Bookings에 대한 페이지네이션 구현
+
+
+# 12.2
+    다른 사람의 프로필에 들어가서, 그 사람의 리뷰들, 어떤 house와 experience에 방문했는지, 어떤 house와 experience를 소유하고 있는지
+
+# 16.4
+    test_amenity_put 해보기
+
+
+1. ORM
+    .0 python manage.py shell
+    : 일반 콘솔에서 python을 입력하는 것과 차이가 있다.
+    : 이 프로젝트의 가상 환경에는 django가 설치되어 있으므로, django 명령어를 수행할 수 있다.
+
+    .1 ORM은 객체를 DB와 Mapping하여 CRUD를 수행하는 방법 (ORM은 DB와 소통하는 하나의 방법)
+    : Model 생성하고, Model로부터 생성된 데이터를 DB와 연동
+    : DB에서 데이터를 불러올 수도 있음
+        .1 만약 DB에서 House Model의 데이터를 가지고 오고 싶다면?
+        : $ from houses.models import House
+        -> "$ Houses.objects"로 CRUD를 수행
+
+        .2 objects, save() 등은 models.Model을 extends하면서 생성된 것들
+        : django는 model에 기본적으로 objects라는 DB manager를 제공
+
+    .2 objects
+        .1 filter(attr_name__criteria)
+        : rooms가 15보다 큰 house를 찾고 싶다면? House.objects.filter(rooms__gt=15)
+        : lt는 작은, gte & lte는 같은 것도 포함
+
+        .2 lookup(__)
+        : case-insensitive는 lookup 앞에 "i"를 붙인다.
+
+    .3 Reverse Accessors
+        .1 Reverse Accessors가 필요한 이유
+        : ForeignKey로 등록된 모델이 그 역으로 등록한 모델을 참조하는 방법
+        가령, review 모델은 room을 ForeignKey로 등록하는데, 특정 room에서 해당 room에 대한
+        review들을 보려면 역을 참조해야 한다.
+
+        * dir(object)를 통해 사용할 수 있는 method들을 출력할 수 있다.
+
+        .2 model_set
+        : 자신을 ForeignKey로 등록한 데이터들에 대한 QuerySet을 가지고 올 수 있다.
+        가령, 모델 A가 모델 B를 ForeignKey로 등록하면, 모델 B는 모델 A의 Reverse Accessors인
+        A_set을 메소드로 갖는다. A_set를 다른 이름으로 바꾸고 싶을 때는 related_name을 사용한다.
+        ManyToManyField에도 적용된다. 만약 related_name을 As라고 할당하면,
+        B.A_set 대신 B.As로 A의 objects에 접근할 수 있다.
+
+        A
+
+        b=B, Bs
+
+
+2. 여러 파일에 테스트 클래스를 세분화 하는 방법
+
+    .1 앱 내에 tests 폴더를 생성
+    .2 __init__.py를 생성 - django가 해당 폴더를 패키지로 인식
+    .3 test_FILE_NAME - 이름 양식을 필히 준수
+    .4 tests.py 에서처럼 테스트 코드를 작성
+
+1. 파일 업로드하는 방법
+
+    .1 medias/models.py 참고
+    .2 admin 패널에서 미디어 파일을 업로드하면 장고가 루트 경로에 자동 저장한다. 
+    .3 다른 곳을 저장 경로로 하고 싶을 때는, settings.py에서 미디어 파일의 경로를 명시한다.

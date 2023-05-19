@@ -39,11 +39,6 @@ class House(CommonModel):
         max_length=20,
         choices=RoomKindChoices.choices,
     )
-    host = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="houses",
-    )
     amenities = models.ManyToManyField(
         "amenities.Amenity",
         blank=True,
@@ -56,9 +51,11 @@ class House(CommonModel):
         blank=True,
         related_name="houses",
     )
-
-    def __str__(self):
-        return self.name
+    host = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="houses",
+    )
 
     def total_amenities(self):
         return self.amenities.count()
@@ -74,3 +71,6 @@ class House(CommonModel):
             for value in self.reviews.all().values("rating"):
                 total_rating += value["rating"]
             return round(total_rating / count, 2)
+
+    def __str__(self):
+        return self.name

@@ -1,6 +1,12 @@
+from typing import Any, Optional
 from django.contrib import admin
-from django.db.models.query import QuerySet
+from django.db.models.fields.related import ForeignKey, ManyToManyField
+from django.forms.models import ModelChoiceField, ModelMultipleChoiceField
+from django.http.request import HttpRequest
+
 from .models import House
+from amenities.models import Amenity
+from categories.models import Category
 
 
 @admin.action(description="Set all prices to zero")
@@ -14,13 +20,17 @@ def reset_prices(model_admin, request, houses):
             house.save()
 
 
+@admin.display(description="Amenities")
+def house_amenities(obj):
+    return obj.amenities.filter(parent="houses")
+
+
 @admin.register(House)
 class HouseAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "price",
         "kind",
-        "total_amenities",
         "rating",
         "host",
         "created_at",
@@ -46,3 +56,25 @@ class HouseAdmin(admin.ModelAdmin):
     # models에서도, admin에서도 list_display 내에 들어갈 변수를 정의할 수 있다.
     # def total_amenities(self, house):
     #     return house.amenities.count()
+
+    def formfield_for_manytomany(
+        self,
+        db_field,
+        request: HttpRequest | None,
+        **kwargs: Any,
+    ) -> ModelMultipleChoiceField:
+        # queryset에 데이터를 할당하지 않으면 전체 데이터를 불러온다.
+        if db_field.name == "amenities":
+            kwargs["queryset"] = Amenity.objects.filter(parent="house")
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
+
+    def formfield_for_foreignkey(
+        self,
+        db_field,
+        request: HttpRequest | None,
+        **kwargs: Any,
+    ) -> ModelChoiceField | None:
+        # queryset에 데이터를 할당하지 않으면 전체 데이터를 불러온다.
+        if db_field.name == "category":
+            kwargs["queryset"] = Category.objects.filter(kind="house")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)

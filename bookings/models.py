@@ -5,10 +5,9 @@ from django.conf import settings
 
 class Booking(CommonModel):
 
-    """Booking Model Definition"""
-
-    def __str__(self) -> str:
-        return f"{self.kind.title()}: {self.house if self.kind == 'house' else self.experience}"
+    """
+    Booking Model Definition
+    """
 
     class BookingKindChoices(models.TextChoices):
         HOUSE = "house", "House"
@@ -50,3 +49,6 @@ class Booking(CommonModel):
         blank=True,
     )
     guests = models.PositiveIntegerField()
+
+    def __str__(self) -> str:
+        return f"{self.kind.title()}: {self.house.name if self.kind == 'house' else self.experience.name}"

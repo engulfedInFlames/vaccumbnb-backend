@@ -24,7 +24,6 @@ class CustomUser(AbstractUser):
     # avatar = models.ImageField(blank=True)
     avatar = models.URLField(blank=True)
     name = models.CharField(max_length=150, default="")
-    is_host = models.BooleanField(default=False)
     gender = models.CharField(
         max_length=10,
         choices=GenderChoices.choices,
@@ -37,3 +36,4 @@ class CustomUser(AbstractUser):
         max_length=5,
         choices=CurrencyChoices.choices,
     )
+    is_host = models.BooleanField(default=False)

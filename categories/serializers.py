@@ -1,9 +1,17 @@
-from rest_framework import serializers
+from rest_framework.serializers import ModelSerializer
 from .models import Category
 
 
-class CategorySerializer(serializers.ModelSerializer):
+class CreateCatergorySerializer(ModelSerializer):
+    class Meta:
+        model = Category
+        fields = (
+            "name",
+            "kind",
+        )
 
+
+class CategorySerializer(ModelSerializer):
     """
     Serializer Definition for Category
     """
@@ -11,12 +19,16 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = (
-            "id",
+            "pk",
             "name",
             "kind",
         )
+        extra_kwargs = {
+            "kind": {"read_only": True},
+        }
 
-    """ Below is some code to get an idea of how DRF works
+
+""" Below is some code to get an idea of how DRF works
     
     # read_only로
     pk = serializers.IntegerField(read_only=True)

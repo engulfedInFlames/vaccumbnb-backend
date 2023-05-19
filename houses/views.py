@@ -11,19 +11,15 @@ from rest_framework.exceptions import ParseError, PermissionDenied
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 from .models import House
-from .serializers import (
-    CreateHouseSerializer,
-    HouseListSerializer,
-    HouseDetailSerializer,
-)
+from . import serializers
 
 from amenities.models import Amenity
 from categories.models import Category
 from bookings.models import Booking
 from amenities.serializers import AmenityListSerializer
-from reviews.serializers import ReviewSerializer
+from reviews import serializers as reviewSerializers
 from medias.serializers import PhotoSerializer
-from bookings.serializers import PublicBookingSerializer, CreateHouseBookingSerializer
+from bookings.serializers import BookingListSerializer, CreateHouseBookingSerializer
 
 
 class Houses(APIView):
@@ -32,7 +28,7 @@ class Houses(APIView):
     def get(self, request):
         all_houses = House.objects.all()
         context = {"user": request.user}
-        serializer = HouseListSerializer(
+        serializer = serializers.HouseListSerializer(
             all_houses,
             many=True,
             context=context,
@@ -41,15 +37,15 @@ class Houses(APIView):
 
     def post(self, request):
         user = request.user
-        serializer = CreateHouseSerializer(data=request.data)
+        serializer = serializers.CreateHouseSerializer(data=request.data)
 
         if serializer.is_valid():
-            category_id = request.data.get("category")
+            category_pk = request.data.get("category")
 
-            if not category_id:
+            if not category_pk:
                 raise ParseError("Category is required.")
 
-            category = get_object_or_404(Category, id=category_id)
+            category = get_object_or_404(Category, pk=category_pk)
 
             if category.kind == Category.CategoryKindChoices.HOUSES:
                 raise ParseError("The category kind should be 'houses'.")
@@ -63,10 +59,10 @@ class Houses(APIView):
 
                     amenities = request.data.get("amenities")
 
-                    for amenity_id in amenities:
-                        amenity = get_object_or_404(Amenity, id=amenity_id)
+                    for amenity_pk in amenities:
+                        amenity = get_object_or_404(Amenity, pk=amenity_pk)
                         house.amenities.add(amenity)  # <-> remove
-                    serializer = HouseDetailSerializer(house)
+                    serializer = serializers.HouseDetailSerializer(house)
                     return Response(serializer.data)
 
             except Exception:
@@ -78,19 +74,19 @@ class Houses(APIView):
 class HouseDetail(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def get_object(self, id):
-        return get_object_or_404(House, id=id)
+    def get_object(self, pk):
+        return get_object_or_404(House, pk=pk)
 
-    def get(self, request, id):
+    def get(self, request, pk):
         sleep(0.5)
-        house = self.get_object(id)
+        house = self.get_object(pk)
         context = {"user": request.user}
-        serializer = HouseDetailSerializer(house, context=context)
+        serializer = serializers.HouseDetailSerializer(house, context=context)
         return Response(serializer.data)
 
-    def put(self, request, id):
+    def put(self, request, pk):
         user = request.user
-        house = self.get_object(id)
+        house = self.get_object(pk)
 
         if user != house.host:
             raise PermissionDenied
@@ -99,12 +95,12 @@ class HouseDetail(APIView):
             with transaction.atomic():
                 amenities = request.data.pop("amenities", None)
                 house.amenities.clear()
-                for amenity_id in amenities:
-                    if Amenity.objects.filter(id=amenity_id).exists():
-                        amenity = get_object_or_404(Amenity, id=amenity_id)
+                for amenity_pk in amenities:
+                    if Amenity.objects.filter(pk=amenity_pk).exists():
+                        amenity = get_object_or_404(Amenity, pk=amenity_pk)
                         house.amenities.add(amenity)
 
-                serializer = HouseDetailSerializer(
+                serializer = serializers.HouseDetailSerializer(
                     house,
                     data=request.data,
                     partial=True,
@@ -112,7 +108,7 @@ class HouseDetail(APIView):
 
                 if serializer.is_valid():
                     house = serializer.save()
-                    serializer = HouseDetailSerializer(house)
+                    serializer = serializers.HouseDetailSerializer(house)
 
                     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -124,8 +120,8 @@ class HouseDetail(APIView):
         except Exception:
             raise ParseError("Failed to update the house info.")
 
-    def delete(self, request, id):
-        house = self.get_object(id)
+    def delete(self, request, pk):
+        house = self.get_object(pk)
 
         if request.user != house.host:
             raise PermissionDenied
@@ -137,10 +133,10 @@ class HouseDetail(APIView):
 class HouseReviews(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def get_object(self, id):
-        return get_object_or_404(House, id=id)
+    def get_object(self, pk):
+        return get_object_or_404(House, pk=pk)
 
-    def get(self, request, id):
+    def get(self, request, pk):
         page_size = settings.PAGE_SIZE
 
         try:
@@ -156,27 +152,27 @@ class HouseReviews(APIView):
             page_start = 0
             page_end = page_start + page_size
 
-        house = self.get_object(id)
-        serializer = ReviewSerializer(
+        house = self.get_object(pk)
+        serializer = reviewSerializers.ReviewListSerializer(
             house.reviews.all()[page_start:page_end],  # 0 <= x < 3
             many=True,
         )
         return Response(serializer.data)
 
-    def post(self, request, id):
-        house = self.get_object(id)
-        serializer = ReviewSerializer(data=request.data)
+    def post(self, request, pk):
+        house = self.get_object(pk)
+        serializer = reviewSerializers.CreateReviewSerializer(data=request.data)
         if serializer.is_valid():
             review = serializer.save(
                 user=request.user,
                 house=house,
             )
-            serializer = ReviewSerializer(review)
+            serializer = reviewSerializers.ReviewDetailSerializer(review)
             return Response(serializer.data)
 
 
 class HouseAmenities(APIView):
-    def get(self, request, id):
+    def get(self, request, pk):
         page_size = settings.PAGE_SIZE
 
         try:
@@ -193,7 +189,7 @@ class HouseAmenities(APIView):
             page_start = 0
             page_end = page_start + page_size
 
-        house = get_object_or_404(House, id=id)
+        house = get_object_or_404(House, pk=pk)
         serializer = AmenityListSerializer(
             house.amenities.all()[page_start:page_end],
             many=True,
@@ -205,11 +201,11 @@ class HouseAmenities(APIView):
 class HousePhotos(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def get_object(self, id):
-        return get_object_or_404(House, id=id)
+    def get_object(self, pk):
+        return get_object_or_404(House, pk=pk)
 
-    def post(self, request, id):
-        house = self.get_object(id)
+    def post(self, request, pk):
+        house = self.get_object(pk)
 
         if request.user != house.host:
             raise PermissionDenied
@@ -229,15 +225,14 @@ class HousePhotos(APIView):
 class HouseBookings(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def get_object(self, id):
-        return get_object_or_404(House, id=id)
+    def get_object(self, pk):
+        return get_object_or_404(House, pk=pk)
 
-    def get(self, request, id):
+    def get(self, request, pk):
         """
         The Other Option
-        bookings = Booking.objects.filter(house__id=id)
-        DB를 두 번 조회할 필요가 없다. 하지만 조회하려는 방이 없을 때나 방에 예약이 없을 때나 빈 QuerySet이라는 같은 결과를 반환하여 구분할 수 없게 된다.
-
+        bookings = Booking.objects.filter(house__pk=pk)
+        DB를 두 번 조회할 필요가 없다. 하지만 조회하려는 방이 없을 때나 방에 예약이 없을 때나 빈 querySet이 되어 같은 결과를 반환하므로, 구분할 수 없게 된다.
         """
 
         """
@@ -245,18 +240,18 @@ class HouseBookings(APIView):
         # 11.23
         """
 
-        house = self.get_object(id)
+        house = self.get_object(pk)
         now = timezone.now().date()
         bookings = Booking.objects.filter(
             house=house,
             kind=Booking.BookingKindChoices.HOUSE,
             check_in__gt=now,
         )
-        serializer = PublicBookingSerializer(bookings, many=True)
+        serializer = BookingListSerializer(bookings, many=True)
         return Response(serializer.data)
 
-    def post(self, request, id):
-        house = self.get_object(id)
+    def post(self, request, pk):
+        house = self.get_object(pk)
         serializer = CreateHouseBookingSerializer(data=request.data)
         if serializer.is_valid():
             booking = serializer.save(
@@ -264,7 +259,7 @@ class HouseBookings(APIView):
                 house=house,
                 kind=Booking.BookingKindChoices.HOUSE,
             )
-            serializer = PublicBookingSerializer(booking)
+            serializer = BookingListSerializer(booking)
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

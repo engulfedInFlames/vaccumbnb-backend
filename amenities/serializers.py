@@ -10,7 +10,6 @@ class CreateAmenitySerializer(ModelSerializer):
             "name",
             "detail",
             "description",
-            "parent",
         )
 
     def create(self, validated_data):
@@ -44,7 +43,7 @@ class AmenityDetailSerializer(ModelSerializer):
     class Meta:
         model = Amenity
         fields = (
-            "id",
+            "pk",
             "name",
             "detail",
             "description",

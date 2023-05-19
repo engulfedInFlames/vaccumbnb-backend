@@ -5,14 +5,51 @@ from rest_framework import serializers
 from .models import Booking
 
 
-class PublicBookingSerializer(serializers.ModelSerializer):
+class BookingListSerializer(serializers.ModelSerializer):
+    detail = serializers.SerializerMethodField()
+
+    def get_detail(self, booking):
+        if booking.house:
+            context = {
+                "check_in": booking.check_in,
+                "check_out": booking.check_out,
+            }
+            return context
+        else:
+            context = {
+                "experience_time": booking.experience_time,
+            }
+
     class Meta:
         model = Booking
         fields = (
             "pk",
-            "check_in",
-            "check_out",
-            "experience_time",
+            "detail",
+            "guests",
+        )
+
+
+class BookingDetailSerializer(serializers.ModelSerializer):
+    detail = serializers.SerializerMethodField()
+
+    def get_detail(self, booking):
+        if booking.house:
+            context = {
+                "check_in": booking.check_in,
+                "check_out": booking.check_out,
+            }
+            return context
+        else:
+            context = {
+                "experience_time": booking.experience_time,
+            }
+
+    class Meta:
+        model = Booking
+        fields = (
+            "pk",
+            "user",
+            "detail",
             "guests",
         )
 
@@ -57,9 +94,15 @@ class CreateHouseBookingSerializer(serializers.ModelSerializer):
 
         return values
 
+    def create(self, validated_data):
+        booking = super().create(validated_data)
+        booking.experience = None
+        booking.save()
+        return booking
+
 
 class CreateExperienceBookingSerializer(serializers.ModelSerializer):
-    check_in = serializers.TimeField()
+    experience_time = serializers.TimeField()
 
     class Meta:
         model = Booking
@@ -68,15 +111,33 @@ class CreateExperienceBookingSerializer(serializers.ModelSerializer):
             "guests",
         )
 
+    def validate_check_in(self, value):
+        now = timezone.now().date()
+        if now > value:
+            raise serializers.ValidationError("체크인 날짜가 이미 지났습니다.")
+        return value
 
-class PrivateBookingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Booking
-        fields = (
-            "pk",
-            "user",
-            "check_in",
-            "check_out",
-            "experience_time",
-            "guests",
-        )
+    def validate_check_out(self, value):
+        now = timezone.now().date()
+        if now > value:
+            raise serializers.ValidationError("체크아웃 날짜가 이미 지났습니다.")
+        return value
+
+    # field_name을 쓰지 않았을 때는 모든 데이터를 가지고 온다
+    def validate(self, values):
+        if values["check_in"] >= values["check_out"]:
+            raise serializers.ValidationError("체크아웃 날짜가 체크인 날짜보다 빠릅니다.")
+
+        if Booking.objects.filter(
+            check_in__lt=values["check_out"],
+            check_out__gte=values["check_in"],
+        ).exists():
+            raise serializers.ValidationError("해당 날짜에 이미 예약이 있습니다.")
+
+        return values
+
+    def create(self, validated_data):
+        booking = super().create(validated_data)
+        booking.house = None
+        booking.save()
+        return booking
